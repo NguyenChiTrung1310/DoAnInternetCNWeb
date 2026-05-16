@@ -10,11 +10,11 @@
 
 ## What This Project Is
 
-A simulated stock trading platform where users can:
+A stock browsing and portfolio management platform where users can:
 
 - Browse listed stocks with real-time-like price displays
-- Place simulated buy/sell orders (paper trading)
-- Manage their virtual portfolio
+- Manage a personal watchlist of stocks they want to track
+- View their virtual portfolio with P&L calculations
 - View transaction history
 
 Administrators can:
@@ -23,7 +23,7 @@ Administrators can:
 - Manage user accounts (lock/unlock, deposit virtual funds)
 - Monitor transactions
 
-**Important**: This is paper trading only — no real money, no real exchange integration. Pricing is seeded and updated manually by admins.
+**Important**: No live trading — portfolio and transaction data are seeded for demo purposes. Pricing is seeded and updated manually by admins.
 
 ## Tech Stack (Locked)
 
@@ -78,35 +78,22 @@ Administrators can:
 
 ### Entities
 
-- **User**: Person who can trade. Has balance, owns Portfolios, makes Transactions.
+- **User**: Person who browses stocks, manages watchlist, views portfolio and history. Has balance.
 - **Stock**: A listed security (e.g., VNM, FPT). Has current_price, previous_close.
-- **Transaction**: Record of a buy/sell. Append-only (immutable after creation).
-- **Portfolio**: Aggregate position. Updated on each transaction. Has avg_price calculation.
+- **Transaction**: Record of a historical transaction (seeded). Append-only (immutable after creation).
+- **Portfolio**: User's current holdings with avg_price. Seeded for demo.
+- **Watchlist**: User's personal list of stocks to track. Can be added/removed.
 - **PriceHistory**: Daily price snapshots for charting.
 
 ### Key Business Rules
 
-1. **Trading lot size**: Minimum buy/sell quantity is 100 shares, must be multiple of 100 (Vietnamese stock convention)
-2. **Transaction fee**: 0.15% of transaction value
-3. **Buy order**:
-   - Required: `balance >= (quantity * price) + fee`
-   - On success: deduct from balance, create transaction, update portfolio (weighted average price)
-4. **Sell order**:
-   - Required: user owns >= quantity in portfolio
-   - On success: create transaction, reduce portfolio quantity (delete row if quantity hits 0), credit user balance after fee
-5. **Atomicity**: All trading operations MUST use `DB::transaction()` to ensure consistency
-6. **Inactive users**: Cannot login (return error message in Vietnamese)
-7. **Inactive stocks**: Cannot be traded (return error)
+1. **Inactive users**: Cannot login (return error message in Vietnamese)
+2. **Watchlist idempotent**: Adding a duplicate watchlist entry uses `firstOrCreate` — no error
+3. **Watchlist ownership**: Only owner can delete their watchlist entry (403 otherwise)
+4. **Admin deposit**: Admin can credit virtual funds to user balance using BCMath
+5. **Decimal arithmetic**: All balance/price calculations MUST use BCMath (never float arithmetic)
 
-### Weighted Average Price Formula
-
-When buying more of an existing position:
-
-```
-new_avg = (old_avg * old_qty + buy_price * buy_qty) / (old_qty + buy_qty)
-```
-
-### Profit & Loss
+### Profit & Loss (Portfolio display only)
 
 ```
 market_value = quantity * current_price
